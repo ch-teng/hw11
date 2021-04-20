@@ -600,22 +600,22 @@ class ExamplesMaze {
 
     if (!this.g4.mazeBoard.get(0).get(1).isConnected(this.g4.mazeBoard.get(0).get(0))) {
       cell2 = new OverlayOffsetAlign(AlignModeX.LEFT, AlignModeY.MIDDLE,
-          new RectangleImage(1, 20, OutlineMode.SOLID, Color.black), 0, 0, cell2);
+          new RectangleImage(2, 20, OutlineMode.SOLID, Color.black), 0, 0, cell2);
     }
     WorldImage row1 = new EmptyImage();
     row1 = new BesideImage(new BesideImage(row1, cell1), cell2);
 
     if (!this.g4.mazeBoard.get(1).get(0).isConnected(this.g4.mazeBoard.get(0).get(0))) {
       cell3 = new OverlayOffsetAlign(AlignModeX.CENTER, AlignModeY.TOP,
-          new RectangleImage(20, 1, OutlineMode.SOLID, Color.black), 0, 0, cell3);
+          new RectangleImage(20, 2, OutlineMode.SOLID, Color.black), 0, 0, cell3);
     }
     if (!this.g4.mazeBoard.get(1).get(1).isConnected(this.g4.mazeBoard.get(1).get(0))) {
       cell4 = new OverlayOffsetAlign(AlignModeX.LEFT, AlignModeY.MIDDLE,
-          new RectangleImage(1, 20, OutlineMode.SOLID, Color.black), 0, 0, cell4);
+          new RectangleImage(2, 20, OutlineMode.SOLID, Color.black), 0, 0, cell4);
     }
     if (!this.g4.mazeBoard.get(1).get(1).isConnected(this.g4.mazeBoard.get(0).get(1))) {
       cell4 = new OverlayOffsetAlign(AlignModeX.CENTER, AlignModeY.TOP,
-          new RectangleImage(20, 1, OutlineMode.SOLID, Color.black), 0, 0, cell4);
+          new RectangleImage(20, 2, OutlineMode.SOLID, Color.black), 0, 0, cell4);
     }
 
     WorldImage row2 = new BesideImage(new BesideImage(row2Emp, cell3), cell4);
