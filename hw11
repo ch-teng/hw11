@@ -1,8 +1,10 @@
 import java.util.ArrayList;
+
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.function.Predicate;
 
 import tester.*;
 import javalib.impworld.*;
@@ -20,7 +22,7 @@ class Node {
   // We are aware there probably should be more fields in Node
   // but for now, we are just focused on creating the Maze itself
   ArrayList<Edge> outedges;
-  
+
   Color color;
 
   Node(ArrayList<Edge> outedges) {
@@ -83,6 +85,17 @@ class Edge {
   public void removeThisEdge() {
     this.from.remove(this);
     this.to.remove(this);
+  }
+  
+  //returns the other node that this edge connects to
+  public Node otherNode(Node curr) {
+    if(this.to.equals(curr)) {
+      return this.from;
+    } else if (this.from.equals(curr)) {
+      return this.to;
+    } else {
+      throw new RuntimeException("given node is not a part of this edge");
+    }
   }
 }
 
@@ -157,9 +170,20 @@ class MazeGame extends World {
   ArrayList<ArrayList<Node>> mazeBoard;
   // one value that controls the size of the board
   int squareSize;
+  
+  //these fields are only used for gametype 1
   int curX;
   int curY;
+  
+  //this field is used for all gametypes 
   ArrayList<Node> nodesVisited;
+  //input should be 1: manual, 2: DFS, 3: BFS
+  int gameType;
+  
+  //these fields are only used for gametypes 2 and 3
+  ICollection<Node> worklist;
+  HashMap<Node, Edge> cameFromEdge;
+  ArrayList<Node> alreadySeen;
 
   public MazeGame(int x, int y, int sqSize, Random rand, int gameType) {
     this.mazeBoard = this.makeConnectedBoard(x, y, rand);
@@ -167,9 +191,22 @@ class MazeGame extends World {
     this.curX = 0;
     this.curY = 0;
     this.nodesVisited = new ArrayList<Node>();
-    if (gameType == 1) {
-      return;
+    if(gameType < 1 || gameType > 3) {
+      throw new RuntimeException("Invalid game type");
+    } else {
+      this.gameType = gameType;
     }
+    if(this.gameType == 2) {
+      this.worklist = new Stack<Node>();
+      this.worklist.add(this.mazeBoard.get(0).get(0));
+    } else if(this.gameType == 3){
+      this.worklist = new Queue<Node>();
+      this.worklist.add(this.mazeBoard.get(0).get(0));
+    }
+    this.cameFromEdge = new HashMap<Node, Edge>();
+    this.alreadySeen = new ArrayList<Node>();
+    
+    
   }
 
   public MazeGame(int x, int y, int sqSize, int gameType) {
@@ -192,10 +229,11 @@ class MazeGame extends World {
       ArrayList<Node> rowI = new ArrayList<Node>();
       for (int j = 0; j < x; j += 1) {
         Node temp = new Node();
-        
-        if(i == 0 && j == 0) {
+
+        if (i == 0 && j == 0) {
           temp.color = Color.red;
-        } else if (i == y-1 && j == x-1) {
+        }
+        else if (i == y - 1 && j == x - 1) {
           temp.color = Color.magenta;
         }
         rowI.add(temp);
@@ -219,7 +257,7 @@ class MazeGame extends World {
     kru.algorithm();
     // removes all of the leftoverpaths that are not used in kruskal's algo
     kru.removeAllLeftOver();
-    
+
     return resultBoard;
   }
 
@@ -228,76 +266,83 @@ class MazeGame extends World {
     input.sort(new CompareByWeight());
   }
 
-  // controls 
+  // controls
   public void onKeyEvent(String key) {
-    Node currNode = this.mazeBoard.get(this.curY).get(this.curX);
-    Node nextNode;
-    if (key.equals("down") && this.curY < this.mazeBoard.size()) {
-      nextNode = this.mazeBoard.get(this.curY+1).get(this.curX);
-      if(currNode.isConnected(this.mazeBoard.get(this.curY+1).get(this.curX))) {
-        if(this.nodesVisited.contains(nextNode)) {
-          this.nodesVisited.remove(nextNode);
-        } else {
-          this.nodesVisited.add(currNode);
+    if (this.gameType == 1) {
+      Node currNode = this.mazeBoard.get(this.curY).get(this.curX);
+      Node nextNode;
+      if (key.equals("down") && this.curY < this.mazeBoard.size()) {
+        nextNode = this.mazeBoard.get(this.curY + 1).get(this.curX);
+        if (currNode.isConnected(this.mazeBoard.get(this.curY + 1).get(this.curX))) {
+          if (this.nodesVisited.contains(nextNode)) {
+            this.nodesVisited.remove(nextNode);
+          }
+          else {
+            this.nodesVisited.add(currNode);
+          }
+          currNode.color = Color.white;
+          this.curY += 1;
+          this.mazeBoard.get(curY).get(curX).color = Color.red;
         }
-        currNode.color = Color.white;
-        this.curY += 1;
-        this.mazeBoard.get(curY).get(curX).color = Color.red;
       }
-    }
-    if (key.equals("up") && this.curY > 0) {
-      nextNode = this.mazeBoard.get(this.curY-1).get(this.curX);
-      if(currNode.isConnected(nextNode)) {
-        if(this.nodesVisited.contains(nextNode)) {
-          this.nodesVisited.remove(nextNode);
-        } else {
-          this.nodesVisited.add(currNode);
+      if (key.equals("up") && this.curY > 0) {
+        nextNode = this.mazeBoard.get(this.curY - 1).get(this.curX);
+        if (currNode.isConnected(nextNode)) {
+          if (this.nodesVisited.contains(nextNode)) {
+            this.nodesVisited.remove(nextNode);
+          }
+          else {
+            this.nodesVisited.add(currNode);
+          }
+          currNode.color = Color.white;
+          this.curY -= 1;
+          this.mazeBoard.get(curY).get(curX).color = Color.red;
         }
-        currNode.color = Color.white;
-        this.curY -= 1;
-        this.mazeBoard.get(curY).get(curX).color = Color.red;
       }
-    }
-    if (key.equals("left") && this.curX > 0) {
-      nextNode = this.mazeBoard.get(this.curY).get(this.curX-1);
-      if(currNode.isConnected(this.mazeBoard.get(this.curY).get(this.curX-1))) {
-        if(this.nodesVisited.contains(nextNode)) {
-          this.nodesVisited.remove(nextNode);
-        } else {
-          this.nodesVisited.add(currNode);
+      if (key.equals("left") && this.curX > 0) {
+        nextNode = this.mazeBoard.get(this.curY).get(this.curX - 1);
+        if (currNode.isConnected(this.mazeBoard.get(this.curY).get(this.curX - 1))) {
+          if (this.nodesVisited.contains(nextNode)) {
+            this.nodesVisited.remove(nextNode);
+          }
+          else {
+            this.nodesVisited.add(currNode);
+          }
+          currNode.color = Color.white;
+          this.curX -= 1;
+          this.mazeBoard.get(curY).get(curX).color = Color.red;
         }
-        currNode.color = Color.white;
-        this.curX -= 1;
-        this.mazeBoard.get(curY).get(curX).color = Color.red;
       }
-    }
-    if (key.equals("right") && this.curX < this.mazeBoard.get(0).size()) {      
-      nextNode = this.mazeBoard.get(this.curY).get(this.curX+1);
-      if(currNode.isConnected(this.mazeBoard.get(this.curY).get(this.curX + 1))) {
-        if(this.nodesVisited.contains(nextNode)) {
-          this.nodesVisited.remove(nextNode);
-        } else {
-          this.nodesVisited.add(currNode);
+      if (key.equals("right") && this.curX < this.mazeBoard.get(0).size()) {
+        nextNode = this.mazeBoard.get(this.curY).get(this.curX + 1);
+        if (currNode.isConnected(this.mazeBoard.get(this.curY).get(this.curX + 1))) {
+          if (this.nodesVisited.contains(nextNode)) {
+            this.nodesVisited.remove(nextNode);
+          }
+          else {
+            this.nodesVisited.add(currNode);
+          }
+          currNode.color = Color.white;
+          this.curX += 1;
+          this.mazeBoard.get(curY).get(curX).color = Color.red;
         }
-        currNode.color = Color.white;
-        this.curX += 1;
-        this.mazeBoard.get(curY).get(curX).color = Color.red;
       }
-    }
-    if(this.curX == this.mazeBoard.get(0).size() - 1 && this.curY == this.mazeBoard.size()-1) {
-      this.endOfWorld("You win!");
+      if (this.curX == this.mazeBoard.get(0).size() - 1 && this.curY == this.mazeBoard.size() - 1) {
+        this.endOfWorld("You win!");
+      }
     }
   }
-  
+
   public WorldScene lastScene(String msg) {
-    for (Node n: this.nodesVisited) {
+    for (Node n : this.nodesVisited) {
       n.color = Color.red;
     }
     WorldScene bkg = this.makeScene();
-    bkg.placeImageXY(new TextImage("You Win!", Color.white), this.getMazeHeight() / 2, this.getMazeWidth() / 2);
+    bkg.placeImageXY(new TextImage("You Win!", Color.white), this.getMazeHeight() / 2,
+        this.getMazeWidth() / 2);
     return bkg;
   }
-  
+
   // draws the maze
   public WorldImage drawMaze() {
     WorldImage bkg = new EmptyImage();
@@ -346,6 +391,46 @@ class MazeGame extends World {
     return this.mazeBoard.size() * this.squareSize;
   }
 
+  
+
+  
+  void searchHelp() {
+      Node next = worklist.remove();
+      next.color = Color.white;
+      if (next.equals(this.mazeBoard.get(this.mazeBoard.size()-1).get(this.mazeBoard.get(0).size()-1))) {
+        this.reconstruct(cameFromEdge, next); // Success!
+      }
+      else if (alreadySeen.contains(next)) {
+        // do nothing: we've already seen this one
+      }
+      else {
+        // add all the neighbors of next to the worklist for further processing
+        for (Edge e : next.outedges) {
+          worklist.add(e.otherNode(next));
+          e.otherNode(next).color = Color.red;
+          cameFromEdge.put(next, e);
+        }
+        // add next to alreadySeen, since we're done with it
+        alreadySeen.add(next);
+      }
+  }
+  
+  // 
+  void reconstruct(HashMap<Node, Edge> cameFromEdge, Node end) {
+    this.nodesVisited.add(end);
+    if(end.equals(this.mazeBoard.get(0).get(0))) {
+      this.endOfWorld("You Win!");
+    }
+    reconstruct(cameFromEdge, cameFromEdge.get(end).otherNode(end));
+  }
+  
+    public void OnTick() {
+      if(this.gameType == 1) {
+        return;
+      } else {
+        this.searchHelp();
+      }
+    }
 }
 
 class CompareByWeight implements Comparator<Edge> {
@@ -355,6 +440,192 @@ class CompareByWeight implements Comparator<Edge> {
     return o1.weight - o2.weight;
   }
 }
+
+//Represents a mutable collection of items
+interface ICollection<T> {
+  // Is this collection empty?
+  boolean isEmpty();
+
+// EFFECT: adds the item to the collection
+  void add(T item);
+
+// Returns the first item of the collection
+// EFFECT: removes that first item
+  T remove();
+}
+
+class Queue<T> implements ICollection<T> {
+  Deque<T> contents;
+
+  Queue() {
+    this.contents = new Deque<T>();
+  }
+
+  public boolean isEmpty() {
+    return this.contents.isEmpty();
+  }
+
+  public T remove() {
+    return this.contents.removeFromHead();
+  }
+
+  public void add(T item) {
+    this.contents.addAtTail(item); // NOTE: Different from Stack!
+  }
+}
+
+class Stack<T> implements ICollection<T> {
+  Deque<T> contents;
+  
+  Stack() {
+    this.contents = new Deque<T>();
+  }
+  public boolean isEmpty() {
+    return this.contents.isEmpty();
+  }
+  public T remove() {
+    return this.contents.removeFromHead();
+  }
+  public void add(T item) {
+    this.contents.addAtHead(item);
+  }
+}
+
+
+
+//represents a Deque with a header that consists of the Sentinel node
+class Deque<T> {
+  Sentinel<T> header;
+
+// first constructor that takes in no arguments
+  Deque() {
+    this.header = new Sentinel<T>();
+  }
+
+  // checks if the Deque is empty
+  public boolean isEmpty() {
+    // TODO Auto-generated method stub
+    return this.size() == 0;
+  }
+
+//counts the number of nodes in a list Deque, not including the header node
+  int size() {
+    return this.header.next.sizeHelp();
+  }
+
+// second constructor that takes in the header as an argument
+  Deque(Sentinel<T> header) {
+    this.header = header;
+  }
+
+// consumes a value of type T and inserts it at the front of the list
+  void addAtHead(T t) {
+    this.header.add(t);
+  }
+
+// consumes a value of type T and inserts it at the tail of this list
+  void addAtTail(T t) {
+    this.header.prev.add(t);
+  }
+
+// removes the first node from this Deque.
+  T removeFromHead() {
+    return this.header.next.removeSelf();
+  }
+}
+
+//an abstract class that can either be a sentinel or a node
+abstract class ANode<T> {
+  ANode<T> next;
+  ANode<T> prev;
+
+// update the next field of this object to be the given object
+  void updateNext(ANode<T> that) {
+    this.next = that;
+  }
+
+// update the previous field of given object to be this object
+  void updatePrev(ANode<T> that) {
+    this.prev = that;
+  }
+
+// counts the number of nodes in an ANode, not including the header node
+  abstract int sizeHelp();
+
+// create a new node with all the right links with the given T data in the node
+  abstract DequeNode<T> add(T t);
+
+// removes this node from the Deque
+  abstract T removeSelf();
+
+}
+
+//represents a sentinel that stores no data in it
+class Sentinel<T> extends ANode<T> {
+  Sentinel() {
+    this.next = this;
+    this.prev = this;
+  }
+
+// create a new node with the given T data as the next of this ANode
+  public DequeNode<T> add(T t) {
+    return new DequeNode<T>(t, this.next, this);
+  }
+
+//returns the number of nodes in a sentinel, which is none
+  public int sizeHelp() {
+    return 0;
+  }
+
+//removes this node from the Deque
+  public T removeSelf() {
+    throw new RuntimeException("cannot remove from an empty list");
+  }
+
+}
+
+//represents a node that has a data, prev, and next
+class DequeNode<T> extends ANode<T> {
+  T data;
+
+  DequeNode(T data) {
+    this.data = data;
+    this.next = null;
+    this.prev = null;
+  }
+
+  DequeNode(T data, ANode<T> next, ANode<T> prev) {
+    this.data = data;
+    this.next = next;
+    this.prev = prev;
+    if (next == null || prev == null) {
+      throw new IllegalArgumentException("A given node is null!");
+    }
+    else {
+      prev.updateNext(this);
+      next.updatePrev(this);
+    }
+  }
+
+// create a new node with all the right links with the given T data in the node
+  public DequeNode<T> add(T t) {
+    return new DequeNode<T>(t, this.next, this);
+  }
+
+//returns the number of nodes in this deque starting from this node
+  public int sizeHelp() {
+    return 1 + this.next.sizeHelp();
+  }
+
+  // removes this node from the Deque
+  public T removeSelf() {
+    this.prev.updateNext(this.next);
+    this.next.updatePrev(this.prev);
+    return this.data;
+  }
+
+}
+ 
 
 //represents examples for the maze;
 class ExamplesMaze {
@@ -425,11 +696,11 @@ class ExamplesMaze {
     edges1 = new ArrayList<Edge>(Arrays.asList(this.edge2, this.edge3, this.edge1));
     edges2 = new ArrayList<Edge>(Arrays.asList(this.edge8, this.edge5, this.edge7, this.edge6));
 
-    g1 = new MazeGame(100, 60, 10,1);
-    g2 = new MazeGame(20, 20, 20,1);
-    g3 = new MazeGame(50, 50, 20,1);
-    g4 = new MazeGame(2, 2, 20,1);
-    g5 = new MazeGame(10, 10, 20, 1);
+    g1 = new MazeGame(100, 60, 10, 1);
+    g2 = new MazeGame(20, 20, 20, 1);
+    g3 = new MazeGame(50, 50, 20, 1);
+    g4 = new MazeGame(2, 2, 20, 1);
+    g5 = new MazeGame(10, 10, 20, 2);
 
     reps = new HashMap<Node, Node>();
     reps2 = new HashMap<Node, Node>();
@@ -679,12 +950,10 @@ class ExamplesMaze {
 //    WorldCanvas c = new WorldCanvas(this.g2.getMazeWidth(), this.g2.getMazeHeight());
 //    return c.drawScene(this.g2.makeScene()) && c.show();
 //  }
-  
-  /*
-  void testBigBang(Tester t) {
+
+  void testBigBang(Tester t) { 
     this.initConditions();
-    this.g5.bigBang(this.g5.getMazeWidth(), this.g5.getMazeHeight());
-  }
-  */
+    this.g5.bigBang(this.g5.getMazeWidth(), this.g5.getMazeHeight(), 1); 
+    }
 
 }
