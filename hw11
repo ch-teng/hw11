@@ -13,8 +13,11 @@ import javalib.worldcanvas.WorldCanvas;
 import java.awt.Color;
 import javalib.worldimages.*;
 
-//fix the tests
 // fix the "you win"
+// constructor exception
+
+// shows "you win" after winning a game
+// can change the gameType(manual, BFS, or DFS) by key press during a game
 
 // represents a node that is connected by a list of edges
 class Node {
@@ -86,14 +89,16 @@ class Edge {
     this.from.remove(this);
     this.to.remove(this);
   }
-  
-  //returns the other node that this edge connects to
+
+  // returns the other node that this edge connects to
   public Node otherNode(Node curr) {
-    if(this.to.equals(curr)) {
+    if (this.to.equals(curr)) {
       return this.from;
-    } else if (this.from.equals(curr)) {
+    }
+    else if (this.from.equals(curr)) {
       return this.to;
-    } else {
+    }
+    else {
       throw new RuntimeException("given node is not a part of this edge");
     }
   }
@@ -170,18 +175,18 @@ class MazeGame extends World {
   ArrayList<ArrayList<Node>> mazeBoard;
   // one value that controls the size of the board
   int squareSize;
-  
-  //these fields are only used for gametype 1
+
+  // these fields are only used for gametype 1
   int curX;
   int curY;
-  
-  //this field is used for all gametypes 
+
+  // this field is used for all gametypes
   ArrayList<Node> nodesVisited;
-  //input should be 1: manual, 2: DFS, 3: BFS
+  // input should be 1: manual, 2: DFS, 3: BFS
   int gameType;
-  
-  //these fields are only used for gametypes 2 and 3
-  ICollection<Node> worklist;
+
+  // these fields are only used for gametypes 2 and 3
+  ICollection<Node> worklistSearch;
   HashMap<Node, Edge> cameFromEdge;
   ArrayList<Node> alreadySeen;
 
@@ -191,22 +196,22 @@ class MazeGame extends World {
     this.curX = 0;
     this.curY = 0;
     this.nodesVisited = new ArrayList<Node>();
-    if(gameType < 1 || gameType > 3) {
+    if (gameType < 1 || gameType > 3) {
       throw new RuntimeException("Invalid game type");
-    } else {
+    }
+    else {
       this.gameType = gameType;
     }
-    if(this.gameType == 2) {
-      this.worklist = new Stack<Node>();
-      this.worklist.add(this.mazeBoard.get(0).get(0));
-    } else if(this.gameType == 3){
-      this.worklist = new Queue<Node>();
-      this.worklist.add(this.mazeBoard.get(0).get(0));
+    if (this.gameType == 2) {
+      this.worklistSearch = new Stack<Node>();
+      this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+    }
+    else if (this.gameType == 3) {
+      this.worklistSearch = new Queue<Node>();
+      this.worklistSearch.add(this.mazeBoard.get(0).get(0));
     }
     this.cameFromEdge = new HashMap<Node, Edge>();
     this.alreadySeen = new ArrayList<Node>();
-    
-    
   }
 
   public MazeGame(int x, int y, int sqSize, int gameType) {
@@ -266,8 +271,61 @@ class MazeGame extends World {
     input.sort(new CompareByWeight());
   }
 
-  // controls
+  // makes all the cells in this board grey, except the first and last
+  public void grayBoard() {
+    for (ArrayList<Node> arrNode : this.mazeBoard) {
+      for (Node n : arrNode) {
+        n.color = Color.gray;
+      }
+    }
+    this.mazeBoard.get(0).get(0).color = Color.red;
+    this.mazeBoard.get(this.mazeBoard.size() - 1)
+        .get(this.mazeBoard.get(0).size() - 1).color = Color.magenta;
+  }
+
+  // the user can switch between manual solving the current board, DFS, or BFS
+  // Or, they can just reset the board to an entirely new maze of the same size
+  // with "r"
   public void onKeyEvent(String key) {
+    if (key.equals("r")) {
+      this.mazeBoard = this.makeConnectedBoard(this.mazeBoard.get(0).size(), this.mazeBoard.size(),
+          new Random());
+      this.curX = 0;
+      this.curY = 0;
+      this.nodesVisited = new ArrayList<Node>();
+      if (this.gameType == 2) {
+        this.worklistSearch = new Stack<Node>();
+        this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+      }
+      else if (this.gameType == 3) {
+        this.worklistSearch = new Queue<Node>();
+        this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+      }
+      this.cameFromEdge = new HashMap<Node, Edge>();
+      this.alreadySeen = new ArrayList<Node>();
+    }
+    else if (key.equals("1") && this.gameType != 1) {
+      this.gameType = 1;
+      this.nodesVisited = new ArrayList<Node>();
+      this.grayBoard();
+    }
+    else if (key.equals("2") && this.gameType != 2) {
+      this.gameType = 2;
+      this.nodesVisited = new ArrayList<Node>();
+      this.worklistSearch = new Stack<Node>();
+      this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+      this.alreadySeen = new ArrayList<Node>();
+      this.grayBoard();
+    }
+    else if (key.equals("3") && this.gameType != 3) {
+      this.gameType = 3;
+      this.nodesVisited = new ArrayList<Node>();
+      this.worklistSearch = new Queue<Node>();
+      this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+      this.alreadySeen = new ArrayList<Node>();
+      this.grayBoard();
+    }
+
     if (this.gameType == 1) {
       Node currNode = this.mazeBoard.get(this.curY).get(this.curX);
       Node nextNode;
@@ -333,9 +391,10 @@ class MazeGame extends World {
     }
   }
 
+  // creates the last scene for maze game
   public WorldScene lastScene(String msg) {
     for (Node n : this.nodesVisited) {
-      n.color = Color.red;
+      n.color = Color.green;
     }
     WorldScene bkg = this.makeScene();
     bkg.placeImageXY(new TextImage("You Win!", Color.white), this.getMazeHeight() / 2,
@@ -391,48 +450,80 @@ class MazeGame extends World {
     return this.mazeBoard.size() * this.squareSize;
   }
 
-  
-
-  
+  // creates the general search method for BSF and DSF
   void searchHelp() {
-      Node next = worklist.remove();
-      next.color = Color.white;
-      if (next.equals(this.mazeBoard.get(this.mazeBoard.size()-1).get(this.mazeBoard.get(0).size()-1))) {
-        this.reconstruct(cameFromEdge, next); // Success!
+    Node next = this.worklistSearch.remove();
+    next.color = Color.white;
+    if (next.equals(
+        this.mazeBoard.get(this.mazeBoard.size() - 1).get(this.mazeBoard.get(0).size() - 1))) {
+      this.reconstruct(next); // Success!
+    }
+    else {
+      // add all the neighbors of next to the worklist for further processing
+      for (Edge e : next.outedges) {
+        Node other = e.otherNode(next);
+        if (other.color.equals(Color.white)) {
+
+        }
+        else {
+          this.worklistSearch.add(other);
+          e.otherNode(next).color = Color.red;
+          this.cameFromEdge.put(other, e);
+        }
       }
-      else if (alreadySeen.contains(next)) {
-        // do nothing: we've already seen this one
+    }
+  }
+
+  // searchHelp used for BFS to make each tick evaluate the whole worklist
+  void multiSearchHelp() {
+    ICollection<Node> temp = new Queue<Node>();
+    while (!this.worklistSearch.isEmpty()) {
+      Node next = this.worklistSearch.remove();
+      next.color = Color.white;
+      if (next.equals(
+          this.mazeBoard.get(this.mazeBoard.size() - 1).get(this.mazeBoard.get(0).size() - 1))) {
+        this.reconstruct(next); // Success!
       }
       else {
         // add all the neighbors of next to the worklist for further processing
         for (Edge e : next.outedges) {
-          worklist.add(e.otherNode(next));
-          e.otherNode(next).color = Color.red;
-          cameFromEdge.put(next, e);
+          Node other = e.otherNode(next);
+          if (other.color.equals(Color.white)) {
+          }
+          else {
+            temp.add(other);
+            e.otherNode(next).color = Color.red;
+            this.cameFromEdge.put(other, e);
+          }
         }
-        // add next to alreadySeen, since we're done with it
-        alreadySeen.add(next);
       }
+    }
+    this.worklistSearch = temp;
   }
-  
-  // 
-  void reconstruct(HashMap<Node, Edge> cameFromEdge, Node end) {
+
+  // reconstructs the path taken to get to the end
+  void reconstruct(Node end) {
     this.nodesVisited.add(end);
-    if(end.equals(this.mazeBoard.get(0).get(0))) {
+    if (end.equals(this.mazeBoard.get(0).get(0))) {
       this.endOfWorld("You Win!");
     }
-    reconstruct(cameFromEdge, cameFromEdge.get(end).otherNode(end));
-  }
-  
-    public void OnTick() {
-      if(this.gameType == 1) {
-        return;
-      } else {
-        this.searchHelp();
-      }
+    else {
+      this.reconstruct(this.cameFromEdge.get(end).otherNode(end));
     }
+  }
+
+  // creates what happens on every tick
+  public void onTick() {
+    if (this.gameType == 1) {
+      return;
+    }
+    else {
+      this.searchHelp();
+    }
+  }
 }
 
+// function object that compares two edges by their weights
 class CompareByWeight implements Comparator<Edge> {
 
   @Override
@@ -446,14 +537,15 @@ interface ICollection<T> {
   // Is this collection empty?
   boolean isEmpty();
 
-// EFFECT: adds the item to the collection
+  // EFFECT: adds the item to the collection
   void add(T item);
 
-// Returns the first item of the collection
-// EFFECT: removes that first item
+  // Returns the first item of the collection
+  // EFFECT: removes that first item
   T remove();
 }
 
+// represents a queue that removes from the head and adds at tail FIFO
 class Queue<T> implements ICollection<T> {
   Deque<T> contents;
 
@@ -461,45 +553,60 @@ class Queue<T> implements ICollection<T> {
     this.contents = new Deque<T>();
   }
 
+  // Is this Queue empty?
   public boolean isEmpty() {
     return this.contents.isEmpty();
   }
 
+  // Returns the first item of the Queue
+  // EFFECT: removes that first item
   public T remove() {
     return this.contents.removeFromHead();
   }
 
+  // EFFECT: adds the item to the Queue
   public void add(T item) {
     this.contents.addAtTail(item); // NOTE: Different from Stack!
   }
 }
 
+// represents a stack that adds at head and removes from head LIFO
 class Stack<T> implements ICollection<T> {
   Deque<T> contents;
-  
+
   Stack() {
     this.contents = new Deque<T>();
   }
+
+  // Is this Stack empty?
   public boolean isEmpty() {
     return this.contents.isEmpty();
   }
+
+  // Returns the first item of the Stack
+  // EFFECT: removes that first item
   public T remove() {
     return this.contents.removeFromHead();
   }
+
+  // EFFECT: adds the item to the Stack
   public void add(T item) {
     this.contents.addAtHead(item);
   }
 }
 
-
-
 //represents a Deque with a header that consists of the Sentinel node
 class Deque<T> {
   Sentinel<T> header;
 
-// first constructor that takes in no arguments
+  // first constructor that takes in no arguments
   Deque() {
     this.header = new Sentinel<T>();
+  }
+
+  // second constructor that takes in the header as an argument
+  Deque(Sentinel<T> header) {
+    this.header = header;
   }
 
   // checks if the Deque is empty
@@ -508,27 +615,22 @@ class Deque<T> {
     return this.size() == 0;
   }
 
-//counts the number of nodes in a list Deque, not including the header node
+  // counts the number of nodes in a list Deque, not including the header node
   int size() {
     return this.header.next.sizeHelp();
   }
 
-// second constructor that takes in the header as an argument
-  Deque(Sentinel<T> header) {
-    this.header = header;
-  }
-
-// consumes a value of type T and inserts it at the front of the list
+  // consumes a value of type T and inserts it at the front of the list
   void addAtHead(T t) {
     this.header.add(t);
   }
 
-// consumes a value of type T and inserts it at the tail of this list
+  // consumes a value of type T and inserts it at the tail of this list
   void addAtTail(T t) {
     this.header.prev.add(t);
   }
 
-// removes the first node from this Deque.
+  // removes the first node from this Deque.
   T removeFromHead() {
     return this.header.next.removeSelf();
   }
@@ -539,23 +641,23 @@ abstract class ANode<T> {
   ANode<T> next;
   ANode<T> prev;
 
-// update the next field of this object to be the given object
+  // update the next field of this object to be the given object
   void updateNext(ANode<T> that) {
     this.next = that;
   }
 
-// update the previous field of given object to be this object
+  // update the previous field of given object to be this object
   void updatePrev(ANode<T> that) {
     this.prev = that;
   }
 
-// counts the number of nodes in an ANode, not including the header node
+  // counts the number of nodes in an ANode, not including the header node
   abstract int sizeHelp();
 
-// create a new node with all the right links with the given T data in the node
+  // create a new node with all the right links with the given T data in the node
   abstract DequeNode<T> add(T t);
 
-// removes this node from the Deque
+  // removes this node from the Deque
   abstract T removeSelf();
 
 }
@@ -567,17 +669,17 @@ class Sentinel<T> extends ANode<T> {
     this.prev = this;
   }
 
-// create a new node with the given T data as the next of this ANode
+  // create a new node with the given T data as the next of this ANode
   public DequeNode<T> add(T t) {
     return new DequeNode<T>(t, this.next, this);
   }
 
-//returns the number of nodes in a sentinel, which is none
+  // returns the number of nodes in a sentinel, which is none
   public int sizeHelp() {
     return 0;
   }
 
-//removes this node from the Deque
+  // removes this node from the Deque
   public T removeSelf() {
     throw new RuntimeException("cannot remove from an empty list");
   }
@@ -607,12 +709,12 @@ class DequeNode<T> extends ANode<T> {
     }
   }
 
-// create a new node with all the right links with the given T data in the node
+  // create a new node with all the right links with the given T data in the node
   public DequeNode<T> add(T t) {
     return new DequeNode<T>(t, this.next, this);
   }
 
-//returns the number of nodes in this deque starting from this node
+  // returns the number of nodes in this deque starting from this node
   public int sizeHelp() {
     return 1 + this.next.sizeHelp();
   }
@@ -625,7 +727,6 @@ class DequeNode<T> extends ANode<T> {
   }
 
 }
- 
 
 //represents examples for the maze;
 class ExamplesMaze {
@@ -665,9 +766,43 @@ class ExamplesMaze {
   MazeGame g3;
   MazeGame g4;
   MazeGame g5;
+  Stack<Node> stack1;
+  Queue<Node> queue1;
 
-  // creates the initial conditions
+  Sentinel<String> sentinel1;
+  Sentinel<Integer> sentinel2;
+  Sentinel<String> sentinel3;
+  Deque<String> deque1;
+  ANode<String> abc;
+  ANode<String> bcd;
+  ANode<String> cde;
+  DequeNode<String> def;
+  Deque<String> deque2;
+  ANode<Integer> one;
+  ANode<Integer> two;
+  ANode<Integer> three;
+  ANode<Integer> four;
+  ANode<Integer> five;
+  Deque<Integer> deque3;
+
+  // sets the initial conditions
   void initConditions() {
+    this.sentinel1 = new Sentinel<String>();
+    this.sentinel2 = new Sentinel<Integer>();
+    this.sentinel3 = new Sentinel<String>();
+    this.deque1 = new Deque<String>();
+    this.abc = new DequeNode<String>("abc", this.sentinel1, this.sentinel1);
+    this.bcd = new DequeNode<String>("bcd", this.sentinel1, abc);
+    this.cde = new DequeNode<String>("cde", this.sentinel1, bcd);
+    this.def = new DequeNode<String>("def", this.sentinel1, cde);
+    this.deque2 = new Deque<String>(this.sentinel1);
+    this.one = new DequeNode<Integer>(1, this.sentinel2, this.sentinel2);
+    this.two = new DequeNode<Integer>(2, this.sentinel2, one);
+    this.three = new DequeNode<Integer>(3, this.sentinel2, two);
+    this.four = new DequeNode<Integer>(4, this.sentinel2, three);
+    this.five = new DequeNode<Integer>(5, this.sentinel2, four);
+    this.deque3 = new Deque<Integer>(this.sentinel2);
+
     // constructs the same tree/map as the one in lecture notes
     node1 = new Node();
     node2 = new Node();
@@ -696,11 +831,11 @@ class ExamplesMaze {
     edges1 = new ArrayList<Edge>(Arrays.asList(this.edge2, this.edge3, this.edge1));
     edges2 = new ArrayList<Edge>(Arrays.asList(this.edge8, this.edge5, this.edge7, this.edge6));
 
-    g1 = new MazeGame(100, 60, 10, 1);
+    g1 = new MazeGame(100, 60, 10, 2);
     g2 = new MazeGame(20, 20, 20, 1);
     g3 = new MazeGame(50, 50, 20, 1);
     g4 = new MazeGame(2, 2, 20, 1);
-    g5 = new MazeGame(10, 10, 20, 2);
+    g5 = new MazeGame(40, 40, 10, 2);
 
     reps = new HashMap<Node, Node>();
     reps2 = new HashMap<Node, Node>();
@@ -721,7 +856,8 @@ class ExamplesMaze {
     worklist2 = new ArrayList<Edge>(Arrays.asList(e1, e2, e3));
     kruskal1 = new KruskalMaze(this.reps, this.worklist1);
     kruskal2 = new KruskalMaze(this.reps2, this.worklist2);
-
+    stack1 = new Stack<Node>();
+    queue1 = new Queue<Node>();
   }
 
   // tests the InitConditions method
@@ -759,7 +895,7 @@ class ExamplesMaze {
 
   }
 
-  // tests the remove method in the Node class
+  // tests the remove method in the Node class and ICollection class
   void testRemove(Tester t) {
     this.initConditions();
     t.checkExpect(this.node1.outedges.size(), 2);
@@ -767,7 +903,28 @@ class ExamplesMaze {
     t.checkExpect(this.node1.outedges.size(), 1);
     t.checkExpect(this.node2.isConnected(node3), true);
     t.checkExpect(this.n1.isConnected(n2), true);
-
+    // tests remove for stack
+    this.stack1.add(this.node1);
+    this.stack1.add(this.node2);
+    Deque<Node> newDeque = new Deque<Node>();
+    newDeque.addAtHead(this.node1);
+    newDeque.addAtHead(this.node2);
+    this.stack1.remove();
+    newDeque.removeFromHead();
+    t.checkExpect(this.stack1.contents, newDeque);
+    this.stack1.remove();
+    t.checkExpect(this.stack1.contents, new Deque<Node>());
+    // tests remove for queue
+    this.queue1.add(this.node3);
+    this.queue1.add(this.node4);
+    Deque<Node> testDeque = new Deque<Node>();
+    testDeque.addAtTail(this.node3);
+    testDeque.addAtTail(this.node4);
+    this.queue1.remove();
+    testDeque.removeFromHead();
+    t.checkExpect(this.queue1.contents, testDeque);
+    this.queue1.remove();
+    t.checkExpect(this.queue1.contents, new Deque<Node>());
   }
 
   // tests the connectsThisToThat method in the Edge class
@@ -786,6 +943,14 @@ class ExamplesMaze {
     this.edge1.removeThisEdge();
     t.checkExpect(this.node1.outedges.size(), 1);
     this.edge8.removeThisEdge();
+  }
+
+  // tests the otherNode method in the Edge class
+  void testOtherNode(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.edge1.otherNode(this.node1), this.node2);
+    t.checkExpect(this.edge2.otherNode(this.node2), this.node3);
+    t.checkExpect(this.edge3.otherNode(this.node3), this.node4);
   }
 
   // tests the find method in the HashUtils class
@@ -894,7 +1059,7 @@ class ExamplesMaze {
     t.checkExpect(this.g4.drawMaze(), world);
   }
 
-  // tests the MakeConnectedBoard
+  // tests the MakeConnectedBoard in the MazeGame class
   void testMakeConnectedBoard(Tester t) {
     this.initConditions();
     // needs to test to make sure that each node connects to each other node
@@ -928,7 +1093,7 @@ class ExamplesMaze {
     t.checkExpect(count2 / 2, 5999);
   }
 
-  // tests the getMazeWidth method in the MazeGame
+  // tests the getMazeWidth method in the MazeGame class
   void testGetMazeWidth(Tester t) {
     this.initConditions();
     t.checkExpect(this.g1.getMazeWidth(), 10 * 100);
@@ -936,7 +1101,7 @@ class ExamplesMaze {
     t.checkExpect(this.g3.getMazeWidth(), 50 * 20);
   }
 
-  // tests the getMazeHeight method in the MazeGame
+  // tests the getMazeHeight method in the MazeGame class
   void testGetMazeHeight(Tester t) {
     this.initConditions();
     t.checkExpect(this.g1.getMazeHeight(), 10 * 60);
@@ -944,6 +1109,221 @@ class ExamplesMaze {
     t.checkExpect(this.g3.getMazeHeight(), 50 * 20);
   }
 
+  // tests the onKeyEvent method in the MazeGame class
+  void testOnKeyEvent(Tester t) {
+    this.initConditions();
+    // makes a new game
+    this.g1.onKeyEvent("r");
+    t.checkExpect(this.g1.curX, 0);
+    t.checkExpect(this.g1.curY, 0);
+    t.checkExpect(this.g1.nodesVisited, new ArrayList<Node>());
+    Stack<Node> stack = new Stack<Node>();
+    stack.add(this.g1.mazeBoard.get(0).get(0));
+    t.checkExpect(this.g1.worklistSearch, stack);
+    this.g2.onKeyEvent("1");
+    t.checkExpect(g2.gameType, 1);
+    t.checkExpect(g2.nodesVisited, new ArrayList<Node>());
+    // changes g3's gameType to 3
+    this.g3.onKeyEvent("3");
+    t.checkExpect(g3.gameType, 3);
+    t.checkExpect(g3.nodesVisited, new ArrayList<Node>());
+    Queue<Node> queue = new Queue<Node>();
+    queue.add(this.g3.mazeBoard.get(0).get(0));
+    t.checkExpect(this.g3.worklistSearch, queue);
+    // when going up and down and left and right, nothing should change
+    // since it traversed the first node many times, the first node should
+    // not be added to nodesVisited
+    this.g1.onKeyEvent("down");
+    this.g1.onKeyEvent("up");
+    this.g1.onKeyEvent("right");
+    this.g1.onKeyEvent("left");
+    t.checkExpect(this.g1.curY, 0);
+    t.checkExpect(this.g1.curX, 0);
+    t.checkExpect(this.g1.nodesVisited, new ArrayList<Node>());
+
+  }
+
+  // tests the lastScene method in MazeGame class
+  void testLastScene(Tester t) {
+    this.initConditions();
+    for (Node n : this.g1.nodesVisited) {
+      n.color = Color.green;
+    }
+    WorldScene bkg = this.g1.makeScene();
+    bkg.placeImageXY(new TextImage("You Win!", Color.white), this.g1.getMazeHeight() / 2,
+        this.g1.getMazeWidth() / 2);
+    t.checkExpect(this.g1.lastScene("You Win!"), bkg);
+  }
+
+  // tests the reconstruct method in MazeGame class
+  void testReconstruct(Tester t) {
+    this.initConditions();
+    this.g1.reconstruct(this.g1.mazeBoard.get(0).get(0));
+    t.checkExpect(this.g1.nodesVisited,
+        new ArrayList<Node>(Arrays.asList(this.g1.mazeBoard.get(0).get(0))));
+  }
+
+  // tests the onTick method in the MazeGame class
+  void testOnTick(Tester t) {
+    this.initConditions();
+    this.g2.onTick();
+    // nothing should happen since g2 is gameType 1 (manual)
+    t.checkExpect(this.g2.alreadySeen, new ArrayList<Node>());
+    t.checkExpect(this.g2.nodesVisited, new ArrayList<Node>());
+    t.checkExpect(this.g2.gameType, 1);
+    t.checkExpect(this.g2.curX, 0);
+    t.checkExpect(this.g2.curY, 0);
+    this.g1.onTick();
+  }
+
+  // tests the constructor for Node class
+  void testConstructor(Tester t) {
+    t.checkConstructorException(new IllegalArgumentException("A given node is null!"), "DequeNode",
+        "abc", null, new DequeNode<String>("bcd"));
+    t.checkConstructorException(new IllegalArgumentException("A given node is null!"), "DequeNode",
+        "abc", new DequeNode<String>("bcd"), null);
+  }
+
+  // tests the updateNextNode method implemented in ANode<T>
+  void testUpdateNext(Tester t) {
+    this.initConditions();
+    this.abc.updateNext(this.def);
+    t.checkExpect(this.abc.next, this.def);
+    this.sentinel1.updateNext(this.abc);
+    t.checkExpect(this.sentinel1.next, this.abc);
+    this.one.updateNext(this.three);
+    t.checkExpect(this.one.next, this.three);
+  }
+
+  // tests the updatePrevNode method implemented in ANode<T>
+  void testUpdatePrev(Tester t) {
+    this.initConditions();
+    this.bcd.updatePrev(this.def);
+    t.checkExpect(this.bcd.prev, this.def);
+    this.one.updatePrev(this.two);
+    t.checkExpect(this.two.prev, this.one);
+    this.sentinel1.updatePrev(this.abc);
+    t.checkExpect(this.sentinel1.prev, this.abc);
+    t.checkExpect(this.abc.prev, this.sentinel1);
+  }
+
+  // tests the size method implemented in the Deque class
+  void testSize(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.deque1.size(), 0);
+    t.checkExpect(this.deque2.size(), 4);
+    t.checkExpect(this.deque3.size(), 5);
+  }
+
+  // tests the sizeHelp method implemented in the ANode class
+  void testSizeHelp(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.sentinel1.sizeHelp(), 0);
+    t.checkExpect(this.abc.sizeHelp(), 4);
+    t.checkExpect(this.one.sizeHelp(), 5);
+  }
+
+  // tests the addAtHead method in Deque class
+  void testAddAtHead(Tester t) {
+    this.initConditions();
+    this.deque1.addAtHead("hi");
+    t.checkExpect(this.deque1.header.next,
+        new DequeNode<String>("hi", this.sentinel3, this.sentinel3));
+    this.deque2.addAtHead("hello");
+    t.checkExpect(this.deque2.header.next,
+        new DequeNode<String>("hello", this.abc, this.sentinel1));
+    this.deque3.addAtHead(10);
+    t.checkExpect(this.deque3.header.next, new DequeNode<Integer>(10, this.one, this.sentinel2));
+  }
+
+  // tests the add method in the ANode class and ICollection class 
+  void testAdd(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.sentinel3.add("12"),
+        new DequeNode<String>("12", this.sentinel3, this.sentinel3));
+    t.checkExpect(this.abc.add("zzz"), new DequeNode<String>("zzz", this.bcd, this.abc));
+    t.checkExpect(this.one.add(10), new DequeNode<Integer>(10, this.two, this.one));
+    // tests add for stack
+    this.stack1.add(this.node1);
+    this.stack1.add(this.node2);
+    Deque<Node> newDeque = new Deque<Node>();
+    newDeque.addAtHead(this.node1);
+    newDeque.addAtHead(this.node2);
+    t.checkExpect(this.stack1.contents, newDeque);
+    // tests add for queue
+    this.queue1.add(this.node3);
+    this.queue1.add(this.node4);
+    Deque<Node> testDeque = new Deque<Node>();
+    testDeque.addAtTail(this.node3);
+    testDeque.addAtTail(this.node4);
+    t.checkExpect(this.queue1.contents, testDeque);
+  }
+
+  // tests the addAtTail method in Deque class
+  void testAddAtTail(Tester t) {
+    this.initConditions();
+    this.deque1.addAtTail("hi");
+    t.checkExpect(this.deque1.header.prev,
+        new DequeNode<String>("hi", this.sentinel3, this.sentinel3));
+    this.deque2.addAtTail("hello");
+    t.checkExpect(this.deque2.header.prev,
+        new DequeNode<String>("hello", this.sentinel1, this.def));
+    this.deque3.addAtTail(10);
+    t.checkExpect(this.deque3.header.prev, new DequeNode<Integer>(10, this.sentinel2, this.five));
+  }
+
+  // tests the removeSelf method in the ANode class
+  void testRemoveSelf(Tester t) {
+    this.initConditions();
+    t.checkException(new RuntimeException("cannot remove from an empty list"),
+        new Sentinel<String>(), "removeSelf");
+    t.checkException(new RuntimeException("cannot remove from an empty list"),
+        new Sentinel<Double>(), "removeSelf");
+    t.checkExpect(this.bcd.removeSelf(), "bcd");
+    t.checkExpect(this.abc.next, this.cde);
+    t.checkExpect(this.cde.prev, this.abc);
+    t.checkExpect(this.one.removeSelf(), 1);
+    t.checkExpect(this.deque3.header.next, this.two);
+    t.checkExpect(this.two.prev, this.sentinel2);
+  }
+
+  // tests the removeFromHead method in Deque class
+  void testRemoveFromHead(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.deque2.removeFromHead(), "abc");
+    t.checkExpect(this.deque2.header.next, this.bcd);
+    t.checkExpect(this.bcd.prev, this.sentinel1);
+    t.checkExpect(this.deque3.removeFromHead(), 1);
+    t.checkExpect(this.sentinel2.next, this.two);
+    t.checkExpect(this.two.prev, this.sentinel2);
+    t.checkException(new RuntimeException("cannot remove from an empty list"), new Deque<String>(),
+        "removeFromHead");
+    t.checkException(new RuntimeException("cannot remove from an empty list"), new Deque<Double>(),
+        "removeFromHead");
+  }
+
+  // tests the IsEmpty method in ICollection
+  void testIsEmpty(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.deque1.isEmpty(), true);
+    t.checkExpect(this.deque2.isEmpty(), false);
+    t.checkExpect(this.deque3.isEmpty(), false);
+    this.stack1.add(this.node1);
+    Deque<Node> newDeque = new Deque<Node>();
+    newDeque.addAtHead(this.node1);
+    t.checkExpect(this.stack1.isEmpty(), false);
+    t.checkExpect(this.queue1.isEmpty(), true);
+  }
+  
+  // tests searchHelp in MazeBoard
+  void testSearchHelp(Tester t) {
+    this.initConditions();
+    
+  }
+  
+  // tests multiSearchHelp in MazeBoard
+  
+  
   // tests the makeScene method
 //  boolean testScene(Tester t) {
 //    this.initConditions();
@@ -951,9 +1331,17 @@ class ExamplesMaze {
 //    return c.drawScene(this.g2.makeScene()) && c.show();
 //  }
 
-  void testBigBang(Tester t) { 
-    this.initConditions();
-    this.g5.bigBang(this.g5.getMazeWidth(), this.g5.getMazeHeight(), 1); 
-    }
+  /*
+   * void testBigBang(Tester t) { this.initConditions(); MazeGame current =
+   * this.g5; current.bigBang(current.getMazeWidth(), current.getMazeHeight(),
+   * .01); }
+   */
 
+  /*
+   * // tests the function objects that implement predicate void
+   * testPredicate(Tester t) { this.initTestCondition(); t.checkExpect(new
+   * Negative().test(1), false); t.checkExpect(new Positive().test(3), true);
+   * t.checkExpect(new BCD().test("bcd"), true); t.checkExpect(new
+   * BCD().test("avocado"), false); }
+   */
 }
